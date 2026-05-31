@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+const API_BASE = "http://localhost:3001/api";
 
 const steps = [
   { id: 1, label: "날짜 선택" },
@@ -23,18 +25,8 @@ const generateSlots = () => {
   const slots = [];
   for (let h = 9; h <= 21; h++) {
     const endH30 = h === 21 ? 22 : h + 1;
-    slots.push({
-      id: `${h}:00`,
-      hour: h,
-      minute: 0,
-      label: `${String(h).padStart(2, "0")}:00 ~ ${String(h).padStart(2, "0")}:30`,
-    });
-    slots.push({
-      id: `${h}:30`,
-      hour: h,
-      minute: 30,
-      label: `${String(h).padStart(2, "0")}:30 ~ ${String(endH30).padStart(2, "0")}:00`,
-    });
+    slots.push({ id: `${h}:00`, hour: h, minute: 0, label: `${String(h).padStart(2, "0")}:00 ~ ${String(h).padStart(2, "0")}:30` });
+    slots.push({ id: `${h}:30`, hour: h, minute: 30, label: `${String(h).padStart(2, "0")}:30 ~ ${String(endH30).padStart(2, "0")}:00` });
   }
   return slots;
 };
@@ -52,24 +44,48 @@ const groupByHour = () => {
 
 const HOUR_GROUPS = groupByHour();
 
-export default function RoomPicker({ building, onPrev, onNext }) {
+function timeToMinutes(time) {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
+export default function RoomPicker({ building, user, selectedDate, onPrev, onNext, onBack }) {
   const rooms = ROOM_DATA[building?.name] || [];
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [startIdx, setStartIdx] = useState(null);
   const [endIdx, setEndIdx] = useState(null);
+  const [reservedSlots, setReservedSlots] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+
+  // 선택한 호실+날짜의 예약된 슬롯 불러오기
+  useEffect(() => {
+    if (!selectedRoom || !selectedDate || !building) return;
+    fetch(`${API_BASE}/reservations/slots?date=${selectedDate}&building=${encodeURIComponent(building.name)}&room=${encodeURIComponent(selectedRoom)}&type=studyroom`)
+      .then(r => r.json())
+      .then(data => { if (data.success) setReservedSlots(data.data); })
+      .catch(() => {});
+  }, [selectedRoom, selectedDate, building]);
+
+  const isReserved = (slot) => {
+    const slotStart = timeToMinutes(`${String(slot.hour).padStart(2, "0")}:${String(slot.minute).padStart(2, "0")}`);
+    const slotEnd = slotStart + 30;
+    return reservedSlots.some(r => {
+      const rStart = timeToMinutes(r.start_time);
+      const rEnd = timeToMinutes(r.end_time);
+      return slotStart < rEnd && rStart < slotEnd;
+    });
+  };
 
   const handleRoomClick = (room) => {
     setSelectedRoom(room);
     setStartIdx(null);
     setEndIdx(null);
+    setReservedSlots([]);
   };
 
   const handleSlotClick = (idx) => {
-    if (startIdx !== null && endIdx !== null) {
-      setStartIdx(null);
-      setEndIdx(null);
-      return;
-    }
+    if (isReserved(SLOTS[idx])) return;
+    if (startIdx !== null && endIdx !== null) { setStartIdx(null); setEndIdx(null); return; }
     if (startIdx === null) { setStartIdx(idx); return; }
     if (idx === startIdx) { setStartIdx(null); return; }
     setStartIdx(Math.min(startIdx, idx));
@@ -82,20 +98,61 @@ export default function RoomPicker({ building, onPrev, onNext }) {
     return idx >= startIdx && idx <= endIdx;
   };
 
-  const getTimeLabel = () => {
+  const getStartTime = () => {
     if (startIdx === null) return null;
     const s = SLOTS[startIdx];
+    return `${String(s.hour).padStart(2, "0")}:${String(s.minute).padStart(2, "0")}`;
+  };
+
+  const getEndTime = () => {
     const e = SLOTS[endIdx ?? startIdx];
-    const startStr = `${String(s.hour).padStart(2, "0")}:${String(s.minute).padStart(2, "0")}`;
     const endMin = (e.hour * 60 + e.minute) + 30;
-    const endStr = `${String(Math.floor(endMin / 60)).padStart(2, "0")}:${String(endMin % 60).padStart(2, "0")}`;
-    return `${startStr} ~ ${endStr}`;
+    return `${String(Math.floor(endMin / 60)).padStart(2, "0")}:${String(endMin % 60).padStart(2, "0")}`;
+  };
+
+  const getTimeLabel = () => {
+    if (startIdx === null) return null;
+    return `${getStartTime()} ~ ${getEndTime()}`;
   };
 
   const canConfirm = selectedRoom && startIdx !== null && endIdx !== null;
 
+  const handleSubmit = async () => {
+    if (!canConfirm) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${API_BASE}/reservations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "studyroom",
+          date: selectedDate,
+          building: building.name,
+          room: selectedRoom,
+          start_time: getStartTime(),
+          end_time: getEndTime(),
+          username: user?.student_id,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`예약 완료!\n호실: ${selectedRoom}\n시간: ${getTimeLabel()}`);
+        onNext && onNext({ room: selectedRoom, time: getTimeLabel() });
+      } else {
+        alert(data.message || "예약에 실패했습니다.");
+      }
+    } catch {
+      alert("서버에 연결할 수 없습니다.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="page">
+      <div style={{ marginBottom: 12 }}>
+        <button className="gray-btn" onClick={onBack}>← 메인으로</button>
+      </div>
       <div className="step-box">
         <div className="steps">
           {steps.map((step) => (
@@ -105,12 +162,11 @@ export default function RoomPicker({ building, onPrev, onNext }) {
             </div>
           ))}
         </div>
-
         <div className="section">
           <div className="section-header">
             <div>
               <h2>3. 호실 선택</h2>
-              <p>{building?.name}의 호실과 시간을 선택합니다.</p>
+              <p>{building?.name}의 호실과 시간을 선택합니다. (날짜: {selectedDate})</p>
             </div>
           </div>
 
@@ -123,18 +179,10 @@ export default function RoomPicker({ building, onPrev, onNext }) {
             </thead>
             <tbody>
               {rooms.map((room) => (
-                <tr
-                  key={room}
-                  className={selectedRoom === room ? "selected-row" : ""}
-                  onClick={() => handleRoomClick(room)}
-                >
+                <tr key={room} className={selectedRoom === room ? "selected-row" : ""} onClick={() => handleRoomClick(room)}>
                   <td>{room}</td>
                   <td className="right">
-                    <button
-                      type="button"
-                      className="select-action-btn"
-                      onClick={(e) => { e.stopPropagation(); handleRoomClick(room); }}
-                    >
+                    <button type="button" className="select-action-btn" onClick={(e) => { e.stopPropagation(); handleRoomClick(room); }}>
                       <span className="arrow-icon" />
                     </button>
                   </td>
@@ -150,16 +198,16 @@ export default function RoomPicker({ building, onPrev, onNext }) {
                 <div className="time-row" key={hour}>
                   <div className="hour">{hour}시</div>
                   <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-                    {slots.map((slot) => (
-                      <button
-                        key={slot.idx}
-                        type="button"
-                        className={`slot${isInRange(slot.idx) ? " selected" : ""}`}
-                        onClick={() => handleSlotClick(slot.idx)}
-                      >
-                        {slot.label}
-                      </button>
-                    ))}
+                    {slots.map((slot) => {
+                      const reserved = isReserved(slot);
+                      const inRange = isInRange(slot.idx);
+                      const cls = ["slot", reserved ? "reserved" : "", inRange ? "selected" : ""].join(" ").trim();
+                      return (
+                        <button key={slot.idx} type="button" className={cls} disabled={reserved} onClick={() => handleSlotClick(slot.idx)}>
+                          {slot.label}{reserved ? " (예약됨)" : ""}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -168,12 +216,8 @@ export default function RoomPicker({ building, onPrev, onNext }) {
 
           <div className="button-area">
             <button className="gray-btn" onClick={onPrev}>← 이전 단계</button>
-            <button
-              className="primary-btn"
-              disabled={!canConfirm}
-              onClick={() => canConfirm && onNext && onNext({ room: selectedRoom, time: getTimeLabel() })}
-            >
-              대실 예약 →
+            <button className="primary-btn" disabled={!canConfirm || submitting} onClick={handleSubmit}>
+              {submitting ? "예약 중..." : "대실 예약 →"}
             </button>
           </div>
         </div>

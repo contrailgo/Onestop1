@@ -19,11 +19,15 @@ const BUILDINGS = [
   { campus: "서울", name: "교수학습개발원-4" },
 ];
 
-export default function BuildingPicker({ onPrev, onNext }) {
+export default function BuildingPicker({ onPrev, onNext, onBack }) {
   const [selectedBuilding, setSelectedBuilding] = useState(null);
 
   return (
     <div className="page">
+      <div style={{ marginBottom: 12 }}>
+        <button className="gray-btn" onClick={onBack}>← 메인으로</button>
+      </div>
+
       <div className="step-box">
         <div className="steps">
           {steps.map((step) => (

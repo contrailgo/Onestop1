@@ -8,7 +8,7 @@ const steps = [
   { id: 3, label: "호실 선택" },
 ];
 
-export default function DatePicker({ onNext }) {
+export default function DatePicker({ onNext, onBack }) {
   const today = new Date();
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
@@ -68,6 +68,10 @@ export default function DatePicker({ onNext }) {
 
   return (
     <div className="page">
+      <div style={{ marginBottom: 12 }}>
+        <button className="gray-btn" onClick={onBack}>← 메인으로</button>
+      </div>
+
       <div className="step-box">
         <div className="steps">
           {steps.map((step) => (
