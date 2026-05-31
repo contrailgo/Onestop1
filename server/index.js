@@ -6,7 +6,9 @@ const userRouter = require("./routes/user");
 const app = express();
 const PORT = process.env.PORT || 3001;
  
-app.use(cors());
+app.use(cors({
+  origin: ["https://onestop1-alpha.vercel.app", "http://localhost:5173"],
+}));
 app.use(express.json());
  
 app.use("/api/reservations", reservationRouter);
