@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const API_BASE = "http://localhost:3001/api";
+const API_BASE = "https://onestop1-production.up.railway.app/api";
 
 export default function Login({ onLogin }) {
   const [username, setUsername] = useState("");

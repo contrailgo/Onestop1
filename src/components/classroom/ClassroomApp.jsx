@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { classroomData, buildings as defaultBuildings, fixedReservedSlots } from "./classroomData.js";
 import { formatRoomLabel, getStatusClass, getStatusText, isTimeOverlap, makeDateKey, makeTimeSlots, pad2 } from "./reservationUtils.js";
 
-const API_BASE = "http://localhost:3001/api";
+const API_BASE = "https://onestop1-production.up.railway.app/api";
 const stepNames = ["날짜 선택", "건물 선택", "강의실 선택", "기타 정보 및 시간 선택"];
 const today = new Date();
 

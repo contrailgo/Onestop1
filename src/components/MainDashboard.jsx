@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const API_BASE = "http://localhost:3001/api";
+const API_BASE = "https://onestop1-production.up.railway.app/api";
 
 const FACILITIES = [
   { building: "자연과학관", name: "세향관(250석)", capacity: "250석" },
