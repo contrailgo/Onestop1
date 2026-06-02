@@ -6,6 +6,10 @@ const API_BASE = "https://onestop1-production.up.railway.app/api";
 const stepNames = ["날짜 선택", "건물 선택", "강의실 선택", "기타 정보 및 시간 선택"];
 const today = new Date();
 
+function getBlockedRooms() {
+  try { return JSON.parse(localStorage.getItem("blockedRooms") || "[]"); } catch { return []; }
+}
+
 export default function ClassroomApp({ user, onBack }) {
   const [reservations, setReservations] = useState([]);
   const [currentStep, setCurrentStep] = useState(1);
@@ -19,11 +23,13 @@ export default function ClassroomApp({ user, onBack }) {
   const [purpose, setPurpose] = useState("");
   const [groupType, setGroupType] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [blockedRooms, setBlockedRooms] = useState(getBlockedRooms());
+  const [blockedModal, setBlockedModal] = useState(null); // {building, room}
+  const [uploadedFile, setUploadedFile] = useState(null);
 
   const rooms = classroomData;
   const selectedRoom = useMemo(() => rooms.find((r) => r.id === selectedRoomId) || null, [rooms, selectedRoomId]);
 
-  // 예약 내역 불러오기
   useEffect(() => {
     if (!user) return;
     fetch(`${API_BASE}/reservations?username=${user.student_id}&type=classroom`)
@@ -38,6 +44,10 @@ export default function ClassroomApp({ user, onBack }) {
         }
       }).catch(() => {});
   }, [user]);
+
+  const isBlockedRoom = (building, roomNumber) => {
+    return blockedRooms.includes(`${building}_${roomNumber}`);
+  };
 
   function isFixedSlotReserved(roomId, slot) {
     return fixedReservedSlots.some((r) => r.roomId === roomId && isTimeOverlap(slot.startTime, slot.endTime, r.startTime, r.endTime));
@@ -56,6 +66,7 @@ export default function ClassroomApp({ user, onBack }) {
 
   function getRoomStatus(room) {
     if (room.status === "viewOnly") return "viewOnly";
+    if (isBlockedRoom(room.building, room.roomNumber)) return "blocked";
     if (!selectedDate) return "available";
     const slots = makeTimeSlots(room);
     const reservedCount = slots.filter((s) => isSlotReserved(room.id, selectedDate, s)).length;
@@ -67,6 +78,11 @@ export default function ClassroomApp({ user, onBack }) {
   function handleSelectDate(date) { setSelectedDate(date); setSelectedBuilding(""); setSelectedRoomId(null); setSelectedTimes([]); }
   function handleSelectBuilding(building) { setSelectedBuilding(building); setSelectedRoomId(null); setSelectedTimes([]); }
   function handleSelectRoom(id, status, direct) {
+    if (status === "blocked") {
+      const room = rooms.find(r => r.id === id);
+      setBlockedModal({ building: room.building, room: room.roomNumber });
+      return;
+    }
     const canSelect = status === "available" || status === "partial";
     if (!canSelect) return;
     setSelectedRoomId(id);
@@ -111,7 +127,6 @@ export default function ClassroomApp({ user, onBack }) {
       const data = await res.json();
       if (data.success) {
         alert("예약이 완료되었습니다!");
-        // 예약 내역 새로고침
         const refreshed = await fetch(`${API_BASE}/reservations?username=${user.student_id}&type=classroom`).then(r => r.json());
         if (refreshed.success) {
           setReservations(refreshed.data.map(r => ({
@@ -127,6 +142,13 @@ export default function ClassroomApp({ user, onBack }) {
       }
     } catch { alert("서버에 연결할 수 없습니다."); }
     finally { setSubmitting(false); }
+  }
+
+  async function handleBlockedSubmit() {
+    if (!uploadedFile) { alert("행사허가원 파일을 첨부해주세요."); return; }
+    alert("신청이 완료되었습니다! 관리자 검토 후 승인됩니다. (심사중)");
+    setBlockedModal(null);
+    setUploadedFile(null);
   }
 
   async function handleCancel(id) {
@@ -160,6 +182,46 @@ export default function ClassroomApp({ user, onBack }) {
 
   return (
     <div className="page">
+      {/* 대여불가 강의실 모달 */}
+      {blockedModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#fff", borderRadius: 12, padding: 32, maxWidth: 480, width: "90%", boxShadow: "0 8px 40px rgba(0,0,0,0.15)" }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#bf2d2d", marginBottom: 8 }}>🚫 대여 불가 강의실</div>
+            <p style={{ fontSize: 14, color: "#555", marginBottom: 16, lineHeight: 1.7 }}>
+              <strong>{blockedModal.building} {blockedModal.room}</strong>은 특별한 사유가 없으면 대여가 불가능한 강의실입니다.<br />
+              이용을 원하시면 <strong>행사허가원</strong>을 작성하여 첨부해 주세요.
+            </p>
+
+            <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+              <a href="/강의실_이용_신청서.hwp" download style={{ flex: 1, padding: "10px 0", background: "#002d6e", color: "#fff", borderRadius: 6, fontSize: 13, fontWeight: 600, textAlign: "center", textDecoration: "none" }}>
+                📄 강의실 신청서 다운로드
+              </a>
+              <a href="/행사허가원.hwp" download style={{ flex: 1, padding: "10px 0", background: "#6a0dad", color: "#fff", borderRadius: 6, fontSize: 13, fontWeight: 600, textAlign: "center", textDecoration: "none" }}>
+                📄 행사허가원 다운로드
+              </a>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: "#333", display: "block", marginBottom: 6 }}>행사허가원 파일 첨부</label>
+              <input type="file" accept=".hwp,.pdf,.doc,.docx" onChange={(e) => setUploadedFile(e.target.files[0])}
+                style={{ fontSize: 13 }} />
+              {uploadedFile && <p style={{ fontSize: 12, color: "#00824a", marginTop: 4 }}>✅ {uploadedFile.name}</p>}
+            </div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => { setBlockedModal(null); setUploadedFile(null); }}
+                style={{ flex: 1, padding: "10px 0", background: "#f0f0f0", border: "1px solid #ccc", borderRadius: 6, fontSize: 13, cursor: "pointer" }}>
+                닫기
+              </button>
+              <button onClick={handleBlockedSubmit}
+                style={{ flex: 1, padding: "10px 0", background: "#002d6e", color: "#fff", border: "none", borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                신청 제출 (심사중)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ marginBottom: 12 }}>
         <button className="gray-btn" onClick={onBack}>← 메인으로</button>
       </div>
@@ -176,7 +238,7 @@ export default function ClassroomApp({ user, onBack }) {
                   <p>단체: {r.group_type} / 사유: {r.purpose}</p>
                 </div>
                 <div>
-                  <span className="status available">{r.status}</span>
+                  <span className={`status ${r.status === "심사중" ? "pending" : "available"}`}>{r.status}</span>
                   <button className="gray-btn" onClick={() => handleCancel(r.id)}>취소</button>
                 </div>
               </div>
@@ -263,14 +325,25 @@ export default function ClassroomApp({ user, onBack }) {
                 {filteredRooms.length === 0 ? <tr><td colSpan="5">등록된 강의실이 없습니다.</td></tr>
                 : filteredRooms.map((room) => {
                   const status = getRoomStatus(room);
-                  const canSelect = status === "available" || status === "partial";
-                  const rowClass = [selectedRoomId === room.id ? "selected-row" : "", canSelect ? "" : "disabled-room"].join(" ").trim();
+                  const isBlocked = status === "blocked";
+                  const canSelect = status === "available" || status === "partial" || isBlocked;
+                  const rowClass = [selectedRoomId === room.id ? "selected-row" : "", !canSelect ? "disabled-room" : ""].join(" ").trim();
                   return (
                     <tr key={room.id} className={rowClass} onClick={() => handleSelectRoom(room.id, status, false)}>
-                      <td>{room.roomNumber}</td><td>{room.openTime} ~ {room.closeTime}</td>
+                      <td>{room.roomNumber}</td>
+                      <td>{room.openTime} ~ {room.closeTime}</td>
                       <td className="right">{room.capacity}명</td>
-                      <td className="right"><span className={`status ${getStatusClass(status)}`}>{getStatusText(status)}</span></td>
-                      <td className="right"><button type="button" className="select-action-btn" disabled={!canSelect} onClick={(e) => { e.stopPropagation(); handleSelectRoom(room.id, status, true); }}><span className="arrow-icon" /></button></td>
+                      <td className="right">
+                        <span className={`status ${isBlocked ? "blocked" : getStatusClass(status)}`}>
+                          {isBlocked ? "🚫 대여불가" : getStatusText(status)}
+                        </span>
+                      </td>
+                      <td className="right">
+                        <button type="button" className="select-action-btn" disabled={!canSelect}
+                          onClick={(e) => { e.stopPropagation(); handleSelectRoom(room.id, status, true); }}>
+                          <span className="arrow-icon" />
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}

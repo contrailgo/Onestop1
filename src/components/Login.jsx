@@ -162,12 +162,6 @@ export default function Login({ onLogin }) {
             >
               <span>{loading ? "로그인 중..." : "Sign in!"}</span>
             </button>
-
-            <div style={styles.findLinks}>
-              <a href="#" style={styles.findLink}>비밀번호 찾기</a>
-              <div style={styles.findSep}></div>
-              <a href="#" style={styles.findLink}>졸업생 ID 찾기</a>
-            </div>
           </div>
         </div>
       </div>
