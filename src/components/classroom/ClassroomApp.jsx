@@ -146,7 +146,34 @@ export default function ClassroomApp({ user, onBack }) {
 
   async function handleBlockedSubmit() {
     if (!uploadedFile) { alert("행사허가원 파일을 첨부해주세요."); return; }
-    alert("신청이 완료되었습니다! 관리자 검토 후 승인됩니다. (심사중)");
+    if (!selectedDate) { alert("날짜를 먼저 선택해주세요."); return; }
+    try {
+      const res = await fetch(`${API_BASE}/reservations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "classroom",
+          date: selectedDate,
+          building: blockedModal.building,
+          room: blockedModal.room,
+          start_time: "00:00",
+          end_time: "00:00",
+          username: user?.student_id,
+          purpose: "대여불가 강의실 신청",
+          group_type: "기타",
+          contact: "",
+          status: "심사중",
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("신청이 완료되었습니다! 관리자 검토 후 승인됩니다. (심사중)");
+      } else {
+        alert(data.message || "신청에 실패했습니다.");
+      }
+    } catch {
+      alert("서버에 연결할 수 없습니다.");
+    }
     setBlockedModal(null);
     setUploadedFile(null);
   }

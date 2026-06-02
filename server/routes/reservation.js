@@ -14,7 +14,7 @@ router.get("/", (req, res) => {
   res.json({ success: true, data: reservations });
 });
 
-// 전체 예약 조회 (관리자용 - 모든 유저)
+// 전체 예약 조회 (관리자용)
 router.get("/all", (req, res) => {
   const { type } = req.query;
   let query = "SELECT r.*, u.name as user_name FROM reservations r LEFT JOIN users u ON r.username = u.student_id WHERE 1=1";
@@ -27,7 +27,7 @@ router.get("/all", (req, res) => {
 
 // 예약 생성
 router.post("/", (req, res) => {
-  const { type, date, building, room, start_time, end_time, username, purpose, group_type, contact, host_group, leader_name, leader_contact } = req.body;
+  const { type, date, building, room, start_time, end_time, username, purpose, group_type, contact, host_group, leader_name, leader_contact, status } = req.body;
   if (!type || !date || !start_time || !end_time || !username) {
     return res.status(400).json({ success: false, message: "필수 항목이 누락됐습니다." });
   }
@@ -40,10 +40,11 @@ router.post("/", (req, res) => {
   if (conflict) {
     return res.status(409).json({ success: false, message: "이미 예약된 시간입니다." });
   }
+  const finalStatus = status || "예약완료";
   const result = db.prepare(`
-    INSERT INTO reservations (type, date, building, room, start_time, end_time, username, purpose, group_type, contact, host_group, leader_name, leader_contact)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(type, date, building, room, start_time, end_time, username, purpose, group_type, contact, host_group, leader_name, leader_contact);
+    INSERT INTO reservations (type, date, building, room, start_time, end_time, username, purpose, group_type, contact, host_group, leader_name, leader_contact, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(type, date, building, room, start_time, end_time, username, purpose, group_type, contact, host_group, leader_name, leader_contact, finalStatus);
   res.json({ success: true, id: result.lastInsertRowid });
 });
 
@@ -51,6 +52,13 @@ router.post("/", (req, res) => {
 router.patch("/:id/cancel", (req, res) => {
   const { id } = req.params;
   db.prepare("UPDATE reservations SET status = '취소됨' WHERE id = ?").run(id);
+  res.json({ success: true });
+});
+
+// 예약 승인 (관리자 전용)
+router.patch("/:id/approve", (req, res) => {
+  const { id } = req.params;
+  db.prepare("UPDATE reservations SET status = '승인됨' WHERE id = ?").run(id);
   res.json({ success: true });
 });
 
