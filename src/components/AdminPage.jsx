@@ -197,9 +197,9 @@ export default function AdminPage({ onBack }) {
 
   const isBlocked = (building, room) => blockedRooms.includes(`${building}_${room}`);
 
-  const activeReservations = reservations.filter(r => r.status !== "취소됨");
+  const activeReservations = reservations.filter(r => r.status !== "취소됨" && r.status !== "심사중" && r.status !== "승인 대기");
   const cancelledReservations = reservations.filter(r => r.status === "취소됨");
-  const pendingReservations = reservations.filter(r => r.status === "심사중");
+  const pendingReservations = reservations.filter(r => r.status === "심사중" || r.status === "승인 대기");
 
   return (
     <div style={{ fontFamily: "'Noto Sans KR', sans-serif", maxWidth: 1100, margin: "0 auto", padding: "24px 16px" }}>

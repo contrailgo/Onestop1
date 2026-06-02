@@ -50,5 +50,11 @@ db.prepare(`INSERT OR IGNORE INTO users (student_id, name, department, campus, i
 
 // 기존 관리자 계정 is_admin 업데이트 보장
 db.prepare("UPDATE users SET is_admin = 1 WHERE student_id = '202501337'").run();
-
+// 마이그레이션: file_url 컬럼 없으면 추가
+const reservationColumns = db.prepare("PRAGMA table_info(reservations)").all();
+const hasFileUrl = reservationColumns.some(c => c.name === "file_url");
+if (!hasFileUrl) {
+  db.exec("ALTER TABLE reservations ADD COLUMN file_url TEXT");
+  console.log("file_url 컬럼 추가됨");
+}
 module.exports = db;

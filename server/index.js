@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 const reservationRouter = require("./routes/reservation");
 const userRouter = require("./routes/user");
  
@@ -10,6 +11,7 @@ app.use(cors({
   origin: ["https://onestop1-alpha.vercel.app", "http://localhost:5173"],
 }));
 app.use(express.json());
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
  
 app.use("/api/reservations", reservationRouter);
 app.use("/api/users", userRouter);
