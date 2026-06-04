@@ -116,4 +116,21 @@ router.get("/slots", (req, res) => {
   res.json({ success: true, data: slots });
 });
 
+// 대여불가 강의실 조회
+router.get("/blocked-rooms", (req, res) => {
+  const rooms = db.prepare("SELECT building, room FROM blocked_rooms").all();
+  res.json({ success: true, data: rooms });
+});
+
+// 대여불가 강의실 설정/해제
+router.post("/blocked-rooms/toggle", (req, res) => {
+  const { building, room } = req.body;
+  const exists = db.prepare("SELECT id FROM blocked_rooms WHERE building = ? AND room = ?").get(building, room);
+  if (exists) {
+    db.prepare("DELETE FROM blocked_rooms WHERE building = ? AND room = ?").run(building, room);
+  } else {
+    db.prepare("INSERT INTO blocked_rooms (building, room) VALUES (?, ?)").run(building, room);
+  }
+  res.json({ success: true });
+});
 module.exports = router;

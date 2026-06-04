@@ -6,9 +6,7 @@ const API_BASE = "https://onestop1-production.up.railway.app/api";
 const stepNames = ["날짜 선택", "건물 선택", "강의실 선택", "기타 정보 및 시간 선택"];
 const today = new Date();
 
-function getBlockedRooms() {
-  try { return JSON.parse(localStorage.getItem("blockedRooms") || "[]"); } catch { return []; }
-}
+
 
 export default function ClassroomApp({ user, onBack }) {
   const [reservations, setReservations] = useState([]);
@@ -23,9 +21,17 @@ export default function ClassroomApp({ user, onBack }) {
   const [purpose, setPurpose] = useState("");
   const [groupType, setGroupType] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [blockedRooms] = useState(getBlockedRooms());
+  const [blockedRooms, setBlockedRooms] = useState([]);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [blockedNotice, setBlockedNotice] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/reservations/blocked-rooms`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) setBlockedRooms(data.data.map(r => `${r.building}_${r.room}`));
+      }).catch(() => {});
+  }, []);
 
   const rooms = classroomData;
   const selectedRoom = useMemo(() => rooms.find((r) => r.id === selectedRoomId) || null, [rooms, selectedRoomId]);
