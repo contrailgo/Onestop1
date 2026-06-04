@@ -28,6 +28,12 @@ export default function DatePicker({ onNext, onBack }) {
     return count;
   };
 
+  const isPast = (day) => {
+    const date = new Date(currentYear, currentMonth, day);
+    const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    return date < todayMidnight;
+  };
+
   const isTooFar = (day) => {
     const date = new Date(currentYear, currentMonth, day);
     const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
