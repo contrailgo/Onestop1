@@ -28,10 +28,12 @@ export default function DatePicker({ onNext, onBack }) {
     return count;
   };
 
-  const isPast = (day) => {
+  const isTooFar = (day) => {
     const date = new Date(currentYear, currentMonth, day);
     const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    return date < todayMidnight;
+    const oneMonthLater = new Date(todayMidnight);
+    oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
+    return date > oneMonthLater;
   };
 
   const isSelected = (day) =>
@@ -53,7 +55,7 @@ export default function DatePicker({ onNext, onBack }) {
   };
 
   const handleDayClick = (day) => {
-    if (isPast(day)) return;
+    if (isPast(day) || isTooFar(day)) return;
     setSelectedDate({ year: currentYear, month: currentMonth, day });
   };
 
@@ -115,16 +117,17 @@ export default function DatePicker({ onNext, onBack }) {
                   {row.map((day, ci) => {
                     if (!day) return <td key={ci} className="disabled"></td>;
                     const past = isPast(day);
+                    const tooFar = isTooFar(day);
                     const sel = isSelected(day);
-                    let cls = past ? "disabled" : "available";
+                    let cls = past || tooFar ? "disabled" : "available";
                     if (sel) cls = "selected";
                     return (
                       <td
                         key={ci}
                         className={cls}
-                        onClick={() => !past && handleDayClick(day)}
+                        onClick={() => !past && !tooFar && handleDayClick(day)}
                         onDoubleClick={() => {
-                          if (!past) {
+                          if (!past && !tooFar) {
                             const date = { year: currentYear, month: currentMonth, day };
                             setSelectedDate(date);
                             onNext && onNext(date);

@@ -196,10 +196,15 @@ export default function FacilityApp({ user, onBack }) {
                   <tr key={ri}>{row.map((day, ci) => {
                     if (!day) return <td key={ci} className="disabled"></td>;
                     const dateKey = makeDateKey(viewYear, viewMonth, day);
-                    const isPast = new Date(viewYear, viewMonth, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                    let cls = isPast ? "disabled" : "available";
+                    const dateObj = new Date(viewYear, viewMonth, day);
+                    const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                    const oneMonthLater = new Date(todayMidnight);
+                    oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
+                    const isPast = dateObj < todayMidnight;
+                    const isTooFar = dateObj > oneMonthLater;
+                    let cls = isPast || isTooFar ? "disabled" : "available";
                     if (selectedDate === dateKey) cls = "selected";
-                    return <td key={ci} className={cls} onClick={() => { if (!isPast) handleSelectDate(dateKey); }} onDoubleClick={() => { if (!isPast) { handleSelectDate(dateKey); setCurrentStep(2); } }}>{day}</td>;
+                    return <td key={ci} className={cls} onClick={() => { if (!isPast && !isTooFar) handleSelectDate(dateKey); }} onDoubleClick={() => { if (!isPast && !isTooFar) { handleSelectDate(dateKey); setCurrentStep(2); } }}>{day}</td>;
                   })}</tr>
                 ))}
               </tbody>
