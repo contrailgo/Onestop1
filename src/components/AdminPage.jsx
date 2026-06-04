@@ -9,12 +9,7 @@ const typeLabel = (type) => {
   return type;
 };
 
-function getBlockedRooms() {
-  try { return JSON.parse(localStorage.getItem("blockedRooms") || "[]"); } catch { return []; }
-}
-function saveBlockedRooms(list) {
-  localStorage.setItem("blockedRooms", JSON.stringify(list));
-}
+
 
 const ALL_CLASSROOMS = [
   { building: "교양관", room: "2201" },
@@ -152,8 +147,16 @@ export default function AdminPage({ onBack }) {
   const [reservations, setReservations] = useState([]);
   const [filterType, setFilterType] = useState("all");
   const [loading, setLoading] = useState(true);
-  const [blockedRooms, setBlockedRooms] = useState(getBlockedRooms());
+  const [blockedRooms, setBlockedRooms] = useState([]);
   const [tab, setTab] = useState("reservations");
+
+  useEffect(() => {
+    fetch(`${API_BASE}/reservations/blocked-rooms`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) setBlockedRooms(data.data.map(r => `${r.building}_${r.room}`));
+      }).catch(() => {});
+  }, []);
 
   const fetchReservations = () => {
     setLoading(true);
@@ -187,13 +190,14 @@ export default function AdminPage({ onBack }) {
     setReservations(prev => prev.map(r => r.id === id ? { ...r, status: "승인됨" } : r));
   };
 
-  const toggleBlockRoom = (building, room) => {
+  const toggleBlockRoom = async (building, room) => {
+    await fetch(`${API_BASE}/reservations/blocked-rooms/toggle`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ building, room }),
+    });
     const key = `${building}_${room}`;
-    const current = getBlockedRooms();
-    const exists = current.includes(key);
-    const updated = exists ? current.filter(k => k !== key) : [...current, key];
-    saveBlockedRooms(updated);
-    setBlockedRooms(updated);
+    setBlockedRooms(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
   };
 
   const isBlocked = (building, room) => blockedRooms.includes(`${building}_${room}`);

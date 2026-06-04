@@ -57,4 +57,13 @@ if (!hasFileUrl) {
   db.exec("ALTER TABLE reservations ADD COLUMN file_url TEXT");
   console.log("file_url 컬럼 추가됨");
 }
+// blocked_rooms 테이블 생성
+db.exec(`
+  CREATE TABLE IF NOT EXISTS blocked_rooms (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    building TEXT NOT NULL,
+    room TEXT NOT NULL,
+    UNIQUE(building, room)
+  );
+`);
 module.exports = db;
