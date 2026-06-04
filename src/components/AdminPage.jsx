@@ -183,6 +183,7 @@ export default function AdminPage({ onBack }) {
 
   const handleApprove = async (id) => {
     if (!window.confirm("이 예약을 승인하시겠습니까?")) return;
+    await fetch(`${API_BASE}/reservations/${id}/approve`, { method: "PATCH" });
     setReservations(prev => prev.map(r => r.id === id ? { ...r, status: "승인됨" } : r));
   };
 
