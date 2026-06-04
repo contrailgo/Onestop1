@@ -66,4 +66,14 @@ db.exec(`
     UNIQUE(building, room)
   );
 `);
+
+// 공지사항 테이블 생성
+db.exec(`
+  CREATE TABLE IF NOT EXISTS notices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now', 'localtime'))
+  );
+`);
 module.exports = db;

@@ -3,6 +3,7 @@ const cors = require("cors");
 const path = require("path");
 const reservationRouter = require("./routes/reservation");
 const userRouter = require("./routes/user");
+const noticeRouter = require("./routes/notice");
  
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -15,6 +16,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
  
 app.use("/api/reservations", reservationRouter);
 app.use("/api/users", userRouter);
+app.use("/api/notices", noticeRouter);
  
 app.listen(PORT, () => {
   console.log(`서버 실행 중: http://localhost:${PORT}`);
