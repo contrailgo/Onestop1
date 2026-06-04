@@ -24,6 +24,7 @@ export default function MainDashboard({ user, onStudyRoom, onClassroom, onFacili
   const [updateStandard, setUpdateStandard] = useState("");
   const [reservations, setReservations] = useState([]);
   const [facilityReservations, setFacilityReservations] = useState([]);
+  const [notices, setNotices] = useState([]);
 
   useEffect(() => {
     const tick = () => {
@@ -44,7 +45,6 @@ export default function MainDashboard({ user, onStudyRoom, onClassroom, onFacili
     return () => clearInterval(timer);
   }, []);
 
-  // 내 예약 내역
   useEffect(() => {
     if (!user) return;
     fetch(`${API_BASE}/reservations?username=${user.student_id}`)
@@ -53,7 +53,6 @@ export default function MainDashboard({ user, onStudyRoom, onClassroom, onFacili
       .catch(() => {});
   }, [user]);
 
-  // 행사시설 오늘 예약 현황
   useEffect(() => {
     fetch(`${API_BASE}/reservations/all?type=facility`)
       .then(r => r.json())
@@ -61,7 +60,13 @@ export default function MainDashboard({ user, onStudyRoom, onClassroom, onFacili
       .catch(() => {});
   }, []);
 
-  // 특정 시설이 현재 이용 중인지 확인
+  useEffect(() => {
+    fetch(`${API_BASE}/notices`)
+      .then(r => r.json())
+      .then(data => { if (data.success) setNotices(data.data); })
+      .catch(() => {});
+  }, []);
+
   const getFacilityStatus = (facilityName) => {
     const today = getTodayKey();
     const now = getCurrentTime();
@@ -73,6 +78,12 @@ export default function MainDashboard({ user, onStudyRoom, onClassroom, onFacili
       r.end_time > now
     );
     return active ? "이용 중" : "대여 가능";
+  };
+
+  const handleCancel = async (id) => {
+    if (!window.confirm("예약을 취소하시겠습니까?")) return;
+    await fetch(`${API_BASE}/reservations/${id}/cancel`, { method: "PATCH" });
+    setReservations(prev => prev.map(r => r.id === id ? { ...r, status: "취소됨" } : r));
   };
 
   const typeLabel = (type) => {
@@ -90,14 +101,6 @@ export default function MainDashboard({ user, onStudyRoom, onClassroom, onFacili
   };
 
   const activeReservations = reservations.filter(r => r.status !== "취소됨");
-  const [notices, setNotices] = useState([]);
-
-  useEffect(() => {
-    fetch("https://onestop1-production.up.railway.app/api/notices")
-      .then(r => r.json())
-      .then(data => { if (data.success) setNotices(data.data); })
-      .catch(() => {});
-  }, []);
 
   return (
     <div className="bg-slate-50 min-h-screen text-slate-800 flex flex-col">
@@ -222,7 +225,6 @@ export default function MainDashboard({ user, onStudyRoom, onClassroom, onFacili
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* 행사시설 현황판 */}
             <div className="bg-white p-6 rounded-xl border border-slate-200/80 shadow-sm lg:col-span-2">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
@@ -266,7 +268,6 @@ export default function MainDashboard({ user, onStudyRoom, onClassroom, onFacili
               </div>
             </div>
 
-            {/* 나의 대실 현황 */}
             <div className="bg-white p-6 rounded-xl border border-slate-200/80 shadow-sm flex flex-col">
               <h3 className="font-bold text-slate-800 text-base mb-4 flex items-center gap-2"><i className="fa-solid fa-receipt text-amber-500"></i> 나의 실시간 대여 현황</h3>
               {activeReservations.length === 0 ? (
@@ -274,16 +275,20 @@ export default function MainDashboard({ user, onStudyRoom, onClassroom, onFacili
                   <p className="text-xs text-slate-400">현재 예약 내역이 없습니다.</p>
                 </div>
               ) : (
-                <div className="space-y-4 overflow-y-auto" style={{ maxHeight: 320 }}>
+                <div className="space-y-4 overflow-y-auto" style={{ maxHeight: 400 }}>
                   {activeReservations.map((r) => (
-                    <div key={r.id} className="p-4 rounded-lg bg-slate-50 border border-slate-200/60 shadow-sm">
+                    <div key={r.id} className="p-5 rounded-lg bg-slate-50 border border-slate-200/60 shadow-sm">
                       <span className={`text-[9px] uppercase font-bold tracking-wider block ${typeColor(r.type)}`}>{typeLabel(r.type)}</span>
                       <h4 className="font-bold text-slate-800 text-sm mt-1">{r.building} {r.room}</h4>
                       <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
                         <i className="fa-regular fa-clock"></i> {r.date} {r.start_time} ~ {r.end_time}
                       </p>
-                      <div className="mt-2">
+                      <div className="mt-2 flex items-center justify-between">
                         <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 font-medium">{r.status}</span>
+                        <button
+                          onClick={() => handleCancel(r.id)}
+                          className="text-[11px] px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-100 font-medium hover:bg-rose-100 transition"
+                        >취소</button>
                       </div>
                     </div>
                   ))}
