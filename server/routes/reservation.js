@@ -56,6 +56,16 @@ router.post("/", (req, res) => {
   if (conflict) {
     return res.status(409).json({ success: false, message: "이미 예약된 시간입니다." });
   }
+
+  // 심사중 중복 방지
+  const pendingConflict = db.prepare(`
+    SELECT id FROM reservations
+    WHERE type = ? AND date = ? AND building = ? AND room = ?
+    AND status = '심사중'
+  `).get(type, date, building, room);
+  if (pendingConflict) {
+    return res.status(409).json({ success: false, message: "해당 강의실은 이미 심사중인 신청이 있습니다." });
+  }
   const finalStatus = status || "승인 대기";
   const result = db.prepare(`
     INSERT INTO reservations (type, date, building, room, start_time, end_time, username, purpose, group_type, contact, host_group, leader_name, leader_contact, status)

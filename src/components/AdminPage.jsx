@@ -217,7 +217,7 @@ export default function AdminPage({ onBack }) {
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-        {[["reservations", "📋 예약 관리"], ["blocked", "🚫 대여불가 강의실 설정"]].map(([val, label]) => (
+        {[["reservations", "📋 예약 관리"], ["blocked", "🚫 대여불가 강의실 설정"], ["notices", "📢 공지사항 관리"]].map(([val, label]) => (
           <button key={val} onClick={() => setTab(val)} style={{
             padding: "8px 20px", borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: "pointer",
             background: tab === val ? "#002d6e" : "#fff",
@@ -260,6 +260,10 @@ export default function AdminPage({ onBack }) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {tab === "notices" && (
+        <NoticeManager />
       )}
 
       {tab === "reservations" && (
@@ -428,4 +432,62 @@ function getBadgeColor(type) {
   if (type === "classroom") return { background: "#e6eef8", color: "#002d6e" };
   if (type === "facility") return { background: "#f3e6f7", color: "#7b2d9a" };
   return {};
+}
+
+function NoticeManager() {
+  const [notices, setNotices] = useState([]);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+
+  useEffect(() => {
+    fetch("https://onestop1-production.up.railway.app/api/notices")
+      .then(r => r.json())
+      .then(data => { if (data.success) setNotices(data.data); })
+      .catch(() => {});
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!title || !content) { alert("제목과 내용을 입력해주세요."); return; }
+    const res = await fetch("https://onestop1-production.up.railway.app/api/notices", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, content }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setNotices(prev => [{ id: data.id, title, content, created_at: new Date().toLocaleString() }, ...prev]);
+      setTitle(""); setContent("");
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("삭제하시겠습니까?")) return;
+    await fetch(`https://onestop1-production.up.railway.app/api/notices/${id}`, { method: "DELETE" });
+    setNotices(prev => prev.filter(n => n.id !== id));
+  };
+
+  return (
+    <div style={{ background: "#fff", border: "1px solid #ddd", borderRadius: 6, padding: 20 }}>
+      <h2 style={{ fontSize: 16, fontWeight: 700, color: "#002d6e", marginBottom: 16 }}>📢 공지사항 관리</h2>
+      <div style={{ marginBottom: 20 }}>
+        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="제목" style={{ width: "100%", padding: "8px 12px", border: "1px solid #ddd", borderRadius: 6, fontSize: 13, marginBottom: 8 }} />
+        <textarea value={content} onChange={e => setContent(e.target.value)} placeholder="내용" rows={4} style={{ width: "100%", padding: "8px 12px", border: "1px solid #ddd", borderRadius: 6, fontSize: 13, marginBottom: 8, resize: "vertical" }} />
+        <button onClick={handleSubmit} style={{ padding: "8px 20px", background: "#002d6e", color: "#fff", border: "none", borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>공지 등록</button>
+      </div>
+      {notices.length === 0 ? (
+        <div style={{ textAlign: "center", color: "#888", padding: 20 }}>등록된 공지사항이 없습니다.</div>
+      ) : (
+        notices.map(n => (
+          <div key={n.id} style={{ border: "1px solid #eee", borderRadius: 6, padding: "12px 16px", marginBottom: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <strong style={{ fontSize: 14 }}>{n.title}</strong>
+              <button onClick={() => handleDelete(n.id)} style={{ ...btnStyle, background: "#ffe8e8", color: "#bf2d2d", border: "1px solid #f5c6c6" }}>삭제</button>
+            </div>
+            <p style={{ fontSize: 13, color: "#555", marginTop: 6 }}>{n.content}</p>
+            <span style={{ fontSize: 11, color: "#aaa" }}>{n.created_at}</span>
+          </div>
+        ))
+      )}
+    </div>
+  );
 }

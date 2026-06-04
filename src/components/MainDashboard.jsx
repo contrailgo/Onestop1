@@ -90,6 +90,14 @@ export default function MainDashboard({ user, onStudyRoom, onClassroom, onFacili
   };
 
   const activeReservations = reservations.filter(r => r.status !== "취소됨");
+  const [notices, setNotices] = useState([]);
+
+  useEffect(() => {
+    fetch("https://onestop1-production.up.railway.app/api/notices")
+      .then(r => r.json())
+      .then(data => { if (data.success) setNotices(data.data); })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="bg-slate-50 min-h-screen text-slate-800 flex flex-col">
@@ -162,6 +170,18 @@ export default function MainDashboard({ user, onStudyRoom, onClassroom, onFacili
         </aside>
 
         <main className="flex-grow space-y-8">
+          {notices.length > 0 && (
+            <div style={{ background: "#fff3cd", border: "1px solid #ffc107", borderRadius: 10, padding: "12px 20px", marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: "#9a6700", marginBottom: 6 }}>📢 공지사항</div>
+              {notices.map(n => (
+                <div key={n.id} style={{ marginBottom: 6 }}>
+                  <strong style={{ fontSize: 13, color: "#333" }}>{n.title}</strong>
+                  <p style={{ fontSize: 12, color: "#555", marginTop: 2 }}>{n.content}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="bg-gradient-to-r from-emerald-800 via-teal-900 to-[#002c5f] text-white p-8 rounded-2xl shadow-md relative overflow-hidden">
             <div className="absolute -right-8 -bottom-12 opacity-15 text-[150px] pointer-events-none"><i className="fa-solid fa-mountain-sun"></i></div>
             <div className="max-w-2xl relative z-10">
